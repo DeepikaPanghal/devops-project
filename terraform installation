@@ -1,0 +1,631 @@
+==============Terraform Installation command for linux 
+
+Steps to Install Terraform:
+Step 1: Update system packages and install necessary dependencies
+bash
+sudo apt-get update && sudo apt-get install -y gnupg software-properties-common
+Step 2: Download and store the HashiCorp GPG key
+wget -O- https://apt.releases.hashicorp.com/gpg | \
+gpg --dearmor | \
+sudo tee /usr/share/keyrings/hashicorp-archive-keyring.gpg > /dev/null
+Step 3: Add the official HashiCorp repository
+echo "deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] \
+https://apt.releases.hashicorp.com $(lsb_release -cs) main" | \
+sudo tee /etc/apt/sources.list.d/hashicorp.list
+Step 4: Update system package list
+sudo apt update -y
+Step 5: Install Terraform
+sudo apt-get install terraform -y
+Step 6: Verify installation
+terraform --version
+
+=============== Terraform Script for Infrastructure Provisioning=========
+📁 main.tf — 
+Create One Directory Name is Terraform-projects-2 in under this folder create one main.tf file.
+Here we need to require access key and secret access key for terraform.
+
+Note: Without Access Key and Secret access key we can not create resources in aws. this is mandatory for interacting with IAM User and terraform provider.
+
+Note : Create your user in aws > go to IAM > Create user.
+
+Now we need to create resources from terraform code . 
+
+This is code for creating resources from terraform.
+
+provider "aws" {
+  region     = "us-east-1"
+  access_key = "xxxxxxxxxx"
+  secret_key = "xxxxxxxx"
+}
+
+variable "ami_id" {
+  default = "ami-084568db4383264d4"  #use your ami id 
+}
+
+variable "instance_type_master" {
+  default = "t2.medium"
+}
+
+variable "instance_type_worker" {
+  default = "t2.micro"
+}
+
+variable "subnet_id" {
+  default = "subnet-0f5c803495d3f4ef7" #use your subnet id
+}
+
+variable "key_name" {
+  default = "project2"  # use your keypair name 
+}
+
+resource "aws_security_group" "k8s_sg" {
+  name        = "kubernetes-sg"
+  description = "Allow necessary Kubernetes ports"
+
+  ingress {                         
+    from_port   = 22
+    to_port     = 22
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  ingress {
+    from_port   = 6443
+    to_port     = 6443
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  ingress {
+    from_port   = 10250
+    to_port     = 10250
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+}
+
+resource "aws_instance" "k8s_master" {
+  ami                         = var.ami_id
+  instance_type               = var.instance_type_master
+  subnet_id                   = var.subnet_id
+  key_name                    = var.key_name
+  vpc_security_group_ids      = [aws_security_group.k8s_sg.id]
+  associate_public_ip_address = true
+
+  tags = {
+    Name = "Kubernetes-Master"
+  }
+}
+
+resource "aws_instance" "k8s_worker1" {
+  ami                    = var.ami_id
+  instance_type          = var.instance_type_worker
+  subnet_id              = var.subnet_id
+  key_name               = var.key_name
+  vpc_security_group_ids = [aws_security_group.k8s_sg.id]
+
+  tags = {
+    Name = "Kubernetes-Worker-1"
+  }
+}
+
+resource "aws_instance" "k8s_worker2" {
+  ami                    = var.ami_id
+  instance_type          = var.instance_type_worker
+  subnet_id              = var.subnet_id
+  key_name               = var.key_name
+  vpc_security_group_ids = [aws_security_group.k8s_sg.id]
+
+  tags = {
+    Name = "Kubernetes-Worker-2"
+  }
+}
+
+resource "aws_instance" "jenkins_master" {
+  ami                    = var.ami_id
+  instance_type          = var.instance_type_worker
+  subnet_id              = var.subnet_id
+  key_name               = var.key_name
+  vpc_security_group_ids = [aws_security_group.k8s_sg.id]
+
+  tags = {
+    Name = "Kubernetes-Worker-3"
+  }
+}
+
+
+
+
+
+Running Terraform Commands
+
+Now we need to run this command before we need to install plugins of terraform.
+After saving the main.tf file in the project directory the following commands are executed to provision the infrastructure
+
+Step 1: Initialize Terraform
+Navigate to the directory containing the main.tf file and run:
+terraform init
+This initializes the working directory and downloads the necessary provider plugins.
+________________________________________
+Step 2: Validate the Configuration (Optional)
+To check for syntax or configuration errors before proceeding:
+terraform validate
+________________________________________
+Step 3: View the Execution Plan
+To preview the actions Terraform will take:
+terraform plan
+This command shows the list of resources that will be created or modified.
+________________________________________
+Step 4: Apply the Configuration
+To provision the infrastructure as defined in the configuration:
+terraform apply –auto-approve
+When prompted, confirm by typing yes.
+After Infrastructure has been successfully deployed through terraform.
+
+
+
+
+#Now we need to install the ansible in same machine.
+
+Installing Ansible (Configuration Management Setup)
+After provisioning the EC2 instances using Terraform, Ansible is installed on the Ubuntu 22.04 control node (same machine where Terraform is installed) to manage configurations across all the created worker nodes.
+A shell script (a.sh) was used to automate the Ansible installation process. 
+
+Here we need to create script for install the ansible.
+sudo apt update -y 
+sudo apt install software-properties-common
+sudo add-apt-repository --yes --update ppa:ansible/ansible
+sudo apt install ansible -y
+
+Run the Script.
+After create the script we need to run this bash a.sh,installation process will be start then we need to generate the ssh keygen so this is the command
+SSH Key Generation and Passwordless Authentication
+To allow Ansible to connect to EC2 instances without prompting for a password each time, follow these steps:
+Step 1: Generate SSH Key Pair
+ssh-keygen -t rsa (To generate an SSH key using RSA without using the root user)
+
+Now Go to this path cd /home/ubuntu/.ssh
+The keys has been created in .ssh folder. There is two files has been created.
+1.id_rsa
+2.id_rsa.pub
+
+Step 2: Copy the Public Key to Worker Node
+Run this command cat id_rsa.pub.you will show ssh key.this key need to be copy and need to paste in same location cd /home/ubuntu/.ssh/authorized_keys
+
+So first of all need to login the server one by one and paste this key into path cd /home/ubuntu/.ssh
+
+First We take Worker1 server.
+Save this key and exit this window.
+Now go to ansible server and try to ssh of this server.
+
+
+then We take Worker2 server.
+Save this key and exit this window.
+Now go to ansible server and try to ssh of this server.
+
+
+We take Worker3 server.
+Save this key and exit this window.
+Now go to ansible server and try to ssh of this server.
+
+
+We take Worker1 server.
+Save this key and exit this window.
+Now go to ansible server and try to ssh of this server.
+
+All Worker3 has been done with passwordless ssh.
+
+Now go to terraform/ansible server and go to this path cd /etc/ansible .
+Open hosts file
+Sudo nano hosts
+Creating the Ansible Hosts File
+The hosts file defines the inventory of all target nodes and organizes them into logical groups.
+
+[localhost] 
+172.31.81.173
+
+[worker]
+172.31.16.142
+172.31.27.148
+
+[master]
+172.31.29.214
+
+
+Step: Now We need to Verify Access to All Nodes
+Here we need to check the all nodes ping getting or not run this command
+
+ansible all -m ping 
+
+# we need to create 3 scripts for installation of jenkins and java 
+sudo nano script1.sh
+Create the script1.sh file
+#Step 2: Paste the below-given scripts here to Install the “Java” & “Jenkins”.
+sudo apt-get update -y
+sudo apt-get install openjdk-17-jre-headless -y
+sudo wget -O /usr/share/keyrings/jenkins-keyring.asc \
+https://pkg.jenkins.io/debian/jenkins.io-2023.key
+echo deb [signed-by=/usr/share/keyrings/jenkins-keyring.asc] \
+https://pkg.jenkins.io/debian binary/ | sudo tee \
+/etc/apt/sources.list.d/jenkins.list > /dev/null
+sudo apt-get update -y
+sudo apt-get install jenkins -y
+
+
+#Script 2 for kubernetes and docker
+sudo nano script2.sh  
+sudo apt-get update -y
+sudo apt-get install openjdk-17-jre-headless -y
+sudo apt-get update -y
+sudo apt install apt-transport-https curl -y
+## Install containerd
+curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+sudo apt-get update -y
+sudo apt-get install containerd.io -y
+## Create containerd configuration
+sudo mkdir -p /etc/containerd
+sudo containerd config default | sudo tee /etc/containerd/config.toml
+sudo sed -i -e 's/SystemdCgroup = false/SystemdCgroup = true/g' /etc/containerd/config.toml
+sudo systemctl restart containerd
+## Install Kubernetes
+curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.30/deb/Release.key | sudo gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+echo 'deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.30/deb/ /' | sudo tee /etc/apt/sources.list.d/kubernetes.list
+sudo apt-get update
+sudo apt-get install -y kubelet kubeadm kubectl
+sudo apt-mark hold kubelet kubeadm kubectl
+sudo systemctl enable --now kubelet
+## Disable swap
+sudo swapoff -a
+sudo modprobe br_netfilter
+sudo sysctl -w net.ipv4.ip_forward=1
+
+
+#Script 3 for java,kubernetes and docker
+sudo nano script3.sh
+sudo apt-get update -y
+sudo apt-get install openjdk-17-jre-headless -y
+sudo apt-get update -y
+sudo apt install apt-transport-https curl -y
+## Install containerd
+curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+sudo apt-get update -y
+sudo apt-get install containerd.io -y
+## Create containerd configuration
+sudo mkdir -p /etc/containerd
+sudo containerd config default | sudo tee /etc/containerd/config.toml
+sudo sed -i -e 's/SystemdCgroup = false/SystemdCgroup = true/g' /etc/containerd/config.toml
+sudo systemctl restart containerd
+## Install Kubernetes
+curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.30/deb/Release.key | sudo gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+echo 'deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.30/deb/ /' | sudo tee /etc/apt/sources.list.d/kubernetes.list
+sudo apt-get update
+sudo apt-get install -y kubelet kubeadm kubectl
+sudo apt-mark hold kubelet kubeadm kubectl
+sudo systemctl enable --now kubelet
+## Disable swap
+sudo swapoff -a
+sudo modprobe br_netfilter
+sudo sysctl -w net.ipv4.ip_forward=1
+
+
+📝 Writing the Playbook 
+
+---
+- name: install Jenkins & Java on Machine 1
+become: true
+hosts: localhost
+tasks:
+- name: running script1
+script: script1.sh
+- name: install Java, Docker & Kubernetes on Machine-1
+become: true
+hosts: master
+tasks:
+- name: running script2
+script: script2.sh
+- name: install Docker & Kubernetes on Machine-2&4
+become: true
+hosts: worker
+tasks:
+- name: running script3
+script: script3.sh
+
+Now We need to run the play book.
+Go to first terraform/ansible server and check version
+Jenkins --version
+Java –version
+
+Now Go to Kubernetes master server and run
+sudo kubeadm init --pod-network-cidr=10.244.0.0/16
+
+after initiating the kubeadm init command you will see 
+
+“kubeadm join 172.31.29.214:6443 --token y46ryo.jfkpmqorlk861mgb --discovery-token-ca-cert-hash sha256:601a953a594d8638f1a22baabf02952163ade898809d45af76235500d504ff45”
+
+Now we need to run the health check command all worker nodes
+sudo kubeadm reset pre-flight checks
+
+Now After sudo kubeadm reset pre-flight checks we need to join the cluster from worker node.this below command.
+
+sudo kubeadm join 172.31.29.214:6443 --token y46ryo.jfkpmqorlk861mgb --discovery-token-ca-cert-hash sha256:601a953a594d8638f1a22baabf02952163ade898809d45af76235500d504ff45 --v=5
+
+All nodes joined successfully and run this command kubectl get nodes make sure this worker nodes should be connected master.
+If everything is configured properly, and nodes have joined the cluster, you'll see output something like this:
+
+NAME           STATUS   ROLES           AGE     VERSION
+master-node    Ready    control-plane   10m     v1.30.0
+worker-node1   Ready    <none>          5m      v1.30.0
+worker-node2   Ready    <none>          5m      v1.30.0
+
+
+
+
+
+#JENKINS
+
+Now Configure Jenkins Setup Properly Here on terraform/ansible machine.
+
+To unlock Jenkins, you need to retrieve the initial admin password after the first installation. 
+This is referred to as the "unlock Jenkins" step shown when accessing Jenkins for the first time via the web UI (typically at http://<your-server>:8080).
+
+Steps to Unlock Jenkins
+1. Find the Initial Admin Password
+Run the following command on the server where Jenkins is installed:
+sudo cat /var/lib/jenkins/secrets/initialAdminPassword
+
+2. Paste Password into Jenkins Web UI
+Open: http://<your-ip>:8080
+You’ll see: "Unlock Jenkins"
+
+Paste the password retrieved above.
+
+Click "Continue".
+
+Now After you will see the getting Started page. Click Install suggested plugins.
+
+After Click The Install Suggested Plugins.the plugins will be install automatically.
+
+After Installed the plugins you need to create the admin user name and password.
+
+Fill in all the information in the form
+Here Click Save and finish then click Start using Jenkins
+
+Jenkins successfully installed.
+
+Now go manage jenkins  >> Nodes > Click New Node.
+
+Here you need to add your master node.
+
+ Step 2: Add a New Node
+Click “New Node” (left menu).
+
+Enter a node name (Agent kubernetesmaster) → Select Permanent Agent → Click OK
+
+Step 3: Configure the Node
+Fill out the following:
+
+Field	Value Example
+Name	build-agent-1
+Description	Optional
+# of Executors	1 (how many builds it can run)
+
+| Field               | Value Example                           |
+| ------------------- | --------------------------------------- |
+| **Name**            | `build-agent-1`                         |
+| **Description**     | Optional                                |
+| **# of Executors**  | `1` (how many builds it can run)        |
+| **Remote root dir** | `/home/jenkins` or `/opt/jenkins-agent` |
+| **Labels**          | `docker linux` (used for job targeting) |
+| **Usage**           | "Use this node as much as possible"     |
+| **Launch method**   | Choose one below ⬇️                     |
+
+
+Step 4: Choose Launch Method
+Option 1: Launch agents via SSH
+Requires Jenkins to SSH into the node.
+
+Enter:172.31.29.214
+
+Credentials: Add Jenkins SSH key or password(use your .pem file key)
+
+Host Key Verification: Use “Non verifying” for testing only
+
+✅ Ensure:
+
+Java is installed on the agent(kubernets master node)
+
+SSH port (22) is open
+
+
+Step 5: Save and Connect
+Click Save.
+
+Jenkins will try to connect.
+
+GO to nodes you will clock difference  If successful, status shows “insync”.
+
+This is the link "https://github.com/DeepikaPanghal/devops-project.git"  which you need to fork in your github. 
+
+"This repository includes a Dockerfile to build a custom Jenkins agent image preloaded with essential tools such as Java, Git, Docker CLI, and Node.js, designed to ensure consistent and efficient CI/CD pipeline execution within Jenkins."
+
+# Use the official Ubuntu base image
+FROM ubuntu:latest
+
+# Update package lists and install Apache2, curl, and ping
+RUN apt-get update && \
+    apt-get install -y apache2 curl iputils-ping && \
+    apt-get clean
+
+# Copy the current directory's contents into the container
+ADD . /var/www/html/
+
+# Expose the default port for Apache (usually port 80)
+EXPOSE 80
+
+# Start Apache in the foreground to keep the container running
+ENTRYPOINT ["apachectl", "-D", "FOREGROUND"]
+
+Create a Pipeline to Automate the Tasks Note: Replace our DockerHub Credentials & Git Hub Repository URL with your DockerHub credentials & forked repository. Otherwise, build will not be successfully created.
+
+To create credentials for docker hub . Go to manage jenking  > credentials > system>global credentials(unrestricted) . Then fill the below form to generate credentials .
+Note : username and password must be same as docker hub username and password.
+
+Important Note for Users
+⚠️ Note: Before using this pipeline, make sure to replace the following placeholders in the Jenkinsfile with your own values:
+
+Your Docker Hub credentials ID stored in Jenkins.
+
+Your Docker Hub username(This will your dockerhub account username)
+
+Your Docker image name deepikapan/project2
+
+Failure to update these values will result in a failed build or push step.
+
+Usage Instructions
+Fork this repository.
+
+Update the Jenkinsfile with your:
+
+GitHub repository URL https://github.com/DeepikaPanghal/devops-project.git
+
+#Jenkin Pipeline for docker image push in docker hub.
+
+pipeline {
+ agent any
+  environment {
+    DOCKERHUB_CREDENTIALS = credentials('f5f24227-fad7-43d9-966f-53fdad10a451') // Replace with your credentials ID
+       IMAGE_NAME = "deepikapan/project2"
+       }
+
+stages {
+     stage('Clone Repository') {
+       steps {
+        git 'https://github.com/DeepikaPanghal/jenkinshands-on.git' 
+         }
+       }
+
+stage('Build Docker Image') {
+   steps {
+      sh 'docker build -t $IMAGE_NAME .'
+      }
+   }
+
+stage('Login to Docker Hub') {
+   steps {
+    sh 'echo $DOCKERHUB_CREDENTIALS_PSW | docker login -u $DOCKERHUB_CREDENTIALS_USR --password-stdin'
+    }
+  }
+
+stage('Push Docker Image') {
+  steps {
+   sh 'docker push $IMAGE_NAME'
+       }
+     }
+  }
+}
+
+Login into your DockerHub Account & you will notice that “deepikapan/project2” will be successfully pushed to the DockerHub account.
+
+
+Kubernetes Deployment and Service Configuration
+To deploy your website using Kubernetes, you are provided with the manifest files:
+
+deployment.yaml – 
+
+service.yaml – 
+
+These file are present in github repository which you have forked from " deepika" github account.
+
+Go to the “Configure” in the “Jenkins” & paste the below-given code to create the Kubernetes Deployment for deploying the application:
+
+#This is Jenkin pipeline kubernetes deployment.
+
+pipeline { 
+    agent none 
+
+    environment { 
+        DOCKERHUB_CREDENTIALS = credentials('f5f24227-fad7-43d9-966f-53fdad10a451') 
+    } 
+
+    stages { 
+        stage('Hello') { 
+            agent { label 'Kmaster' }
+            steps { 
+                echo 'Hello World' 
+            } 
+        } 
+
+        stage('Git') { 
+            agent { label 'Kmaster' } 
+            steps { 
+                git 'https://github.com/DeepikaPanghal/jenkinshands-on.git'
+            } 
+        } 
+
+        stage('Docker') { 
+            agent { label 'Kmaster' } 
+            steps { 
+                sh '''
+                    docker build -t deepikapan/project2 .
+                    echo $DOCKERHUB_CREDENTIALS_PSW | docker login -u $DOCKERHUB_CREDENTIALS_USR --password-stdin
+                    docker push deepikapan/project2
+                '''
+            } 
+        } 
+
+        stage('K8s') { 
+            agent { label 'Kmaster' } 
+            steps { 
+                sh '''
+                    kubectl delete deploy nginx-deployment
+                    kubectl apply -f deployment.yml
+                    kubectl apply -f service.yml
+                '''
+            } 
+        } 
+    } 
+}
+
+
+Again, click on “Build Now”. Now, the build will be successfully created & the website has been successfully deployed over Slaves through Kubernetes Architecture.
+
+
+Kubernetes Deployment Output
+After successfully applying the deployment and service files using the Jenkins pipeline or manually, you can verify the deployment using the following kubectl commands.
+
+Check Deployment Status
+kubectl get deployments
+
+NAME                READY   UP-TO-DATE   AVAILABLE   AGE
+nginx-deployment    2/2     2            2           1m
+
+Check Pods
+kubectl get pods
+
+
+NAME                                 READY   STATUS    RESTARTS   AGE
+nginx-deployment-5df54f96f9-abcde    1/1     Running   0          1m
+nginx-deployment-5df54f96f9-fghij    1/1     Running   0          1m
+
+Check Services
+kubectl get svc
+
+NAME              TYPE        CLUSTER-IP     EXTERNAL-IP   PORT(S)        AGE
+website-service   NodePort    xxx.xxxx.xxx   <none>        80:30008/TCP   1m
+
+You can access the application using node ip address . you will get the same output using all other nodes IP. 
+http://3.90.216.6:30008
+
+
+
+
+
