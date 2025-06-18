@@ -626,6 +626,17 @@ You can access the application using node ip address . you will get the same out
 http://3.90.216.6:30008
 
 
+For automation , follow these steps in github
+Step 1: Go to the “GitHub Repository (website)” & click on the “Settings”.
+Then click Update Webhook.
+The Webhook has been successfully created.
+Go to the “Testpipeline” & choose “GitHub hook trigger for GITScm polling” in “Build Triggers”. You will see the output changes on the page “ capstone master project-1”.
+Now Go to master node url with port no is 30008 to check the output in browser.
+
+
+
+This is the master node output
+http://3.90.216.6:30008/
 
 
 
