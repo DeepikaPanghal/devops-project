@@ -1,0 +1,95 @@
+# Project Overview: DevOps Lifecycle 
+
+You are hired as a DevOps engineer , a product-based organization using Docker for containerization. The company’s final product received significant traction post-launch. Due to increased demand, it now requires:
+
+- A scalable platform for automating deployments
+- Efficient container orchestration
+- CI/CD integration without altering Docker containers from testing
+
+## 🧩 Existing Environment
+
+- Architecture: Monolithic
+- Product Repo: https://github.com/DeepikaPanghal/devops-project.git
+
+---
+
+## 🔧 DevOps Lifecycle Specifications
+
+1. **Git Workflow**
+   - Use version control best practices
+   - Monthly production release on **25th**
+
+2. **CI/CD**
+   - Code build triggered on push to the `master` branch
+   - Build Docker image every time there's a new push
+
+3. **Containerization**
+   - Create a **custom Docker image** using a Dockerfile
+   - Push image to **Docker Hub**
+
+4. **Kubernetes Deployment**
+   - Deploy Docker image to **Kubernetes cluster**
+   - Use 2 replicas
+   - Expose with **NodePort** on port **30008**
+
+5. **Jenkins Pipeline**
+   - Automate the above lifecycle using a scripted pipeline
+
+6. **Configuration Management**
+   - Install required software on respective machines
+
+7. **Infrastructure as Code**
+   - Use **Terraform** to provision infrastructure on **AWS**
+
+---
+
+## 🏗️ Server Setup Guide
+
+| Worker  | Software Requirements       |
+|---------|-----------------------------|
+| Worker1 | Jenkins, Java               |
+| Worker2 | Docker, Kubernetes          |
+| Worker3 | Java, Docker, Kubernetes    |
+| Worker4 | Docker, Kubernetes          |
+
+---
+
+## 🛠️ Key Tools
+
+- Docker
+- Kubernetes
+- Jenkins
+- GitHub
+- Terraform
+- AWS EC2
+
+
+
+
+📁 devops-end-to-end-lifecycle-k8s-jenkins-terraform/
+├── README.md
+├── docker/
+│   └── Dockerfile
+├── jenkins/
+│   └── Jenkinsfile
+├── kubernetes/
+│   ├── deployment.yaml
+│   ├── service.yaml
+├── terraform/
+│   ├── main.tf
+│ 
+│   
+├── config-management/
+│   ├── worker1.sh
+│   ├── worker2.sh
+│   ├── worker3.sh
+│   └── worker4.sh
+├── docs/
+│   └── project-overview.md
+
+
+
+
+
+
+
